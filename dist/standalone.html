@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineServe — Movie Ticket Booking · System Design LLD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0908; --panel:#121010; --panel2:#171413; --ink:#f2efe9; --ink-dim:#9c968d;
+  --red:#e8302a; --red-hi:#ff6b61; --green:#3ecf6b; --line:#26221f; --line2:#37312c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh}
+.mono{font-family:'JetBrains Mono',monospace}
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+
+/* header */
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,9,8,.92);backdrop-filter:blur(8px);z-index:10}
+.hd{display:flex;align-items:center;justify-content:space-between;height:62px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.02em;font-size:17px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 14px rgba(232,48,42,.8)}
+.brand small{color:var(--ink-dim);font-weight:400;font-size:11px;margin-left:6px}
+.hd nav{display:flex;gap:20px;font-size:12px;color:var(--ink-dim)}
+.hd nav a:hover{color:var(--red-hi)}
+.feat{display:flex;gap:14px;font-size:10px;color:var(--ink-dim)}
+.feat b{color:var(--green);font-weight:600}
+
+/* hero */
+.hero{padding:58px 0 44px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero:before{content:"";position:absolute;top:-180px;left:50%;transform:translateX(-50%);width:640px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(232,48,42,.22),transparent 65%);pointer-events:none}
+.eyebrow{font-size:10px;letter-spacing:.28em;color:var(--red);margin-bottom:16px}
+h1{font-size:clamp(34px,6vw,56px);letter-spacing:-.04em;line-height:1.02;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--ink-dim)}
+.lead{color:var(--ink-dim);font-size:15px;max-width:560px;line-height:1.65;margin-bottom:26px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);border-radius:999px;padding:6px 12px;font-size:10px;color:var(--ink-dim)}
+.chip b{color:var(--ink);font-weight:600}
+
+/* stepper */
+.stepper{display:flex;gap:0;border-bottom:1px solid var(--line);position:sticky;top:62px;background:rgba(10,9,8,.94);z-index:9}
+.step{flex:1;text-align:center;padding:13px 4px;font-size:11px;color:var(--ink-dim);border-bottom:2px solid transparent;cursor:pointer;letter-spacing:.04em}
+.step.active{color:var(--ink);border-bottom-color:var(--red)}
+.step.done{color:var(--green)}
+.step .n{display:inline-block;width:18px;height:18px;line-height:18px;border:1px solid var(--line2);border-radius:50%;margin-right:7px;font-size:9px}
+.step.active .n{border-color:var(--red);color:var(--red)}
+.step.done .n{border-color:var(--green);color:var(--green)}
+
+main{padding:34px 0 90px}
+.view{display:none;animation:fade .35s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+.sec-head h2{font-size:22px;letter-spacing:-.02em}
+.sec-head .sub{font-size:12px;color:var(--ink-dim)}
+
+/* movie cards */
+.movies{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.movie-card{border:1px solid var(--line);border-radius:14px;padding:20px;background:linear-gradient(160deg,var(--panel2),var(--panel));cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s;position:relative;overflow:hidden}
+.movie-card:hover{border-color:var(--red);transform:translateY(-3px);box-shadow:0 16px 40px rgba(232,48,42,.13)}
+.movie-card .poster{height:86px;border-radius:10px;margin-bottom:16px;background:radial-gradient(circle at 30% 20%,rgba(232,48,42,.28),transparent 60%),linear-gradient(135deg,#1a1512,#0d0b0a);display:grid;place-items:center;font-size:26px}
+.movie-card h3{font-size:16px;margin-bottom:6px;letter-spacing:-.01em}
+.movie-card .meta{font-size:11px;color:var(--ink-dim)}
+.movie-card .shows{margin-top:12px;font-size:10px;color:var(--green)}
+
+/* show rows */
+.show-row{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:10px;cursor:pointer;transition:border-color .2s,transform .2s;background:var(--panel)}
+.show-row:hover{border-color:var(--red);transform:translateX(4px)}
+.show-row .t{font-size:16px;font-weight:600;min-width:74px}
+.show-row .scr{font-size:12px;color:var(--ink-dim)}
+.show-row .free{font-size:11px;color:var(--green)}
+.show-row .free.low{color:var(--red-hi)}
+.pill{font-size:9px;border:1px solid var(--line2);color:var(--ink-dim);border-radius:999px;padding:3px 9px;letter-spacing:.08em}
+
+/* seat map */
+.screen-arc{height:42px;margin:8px auto 22px;max-width:520px;border-bottom:3px solid var(--line2);border-radius:0 0 50% 50%/0 0 100% 100%;display:grid;place-items:center;font-size:9px;letter-spacing:.3em;color:var(--ink-dim)}
+.seatmap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seat-row{display:flex;align-items:center;gap:6px;justify-content:center}
+.seat-row .rl{width:16px;font-size:9px;color:var(--ink-dim);text-align:center}
+.seat{width:26px;height:24px;border-radius:6px 6px 3px 3px;border:1px solid var(--line2);cursor:pointer;transition:all .15s;position:relative}
+.seat.silver{background:#1c1a17}
+.seat.gold{background:#241d15}
+.seat.platinum{background:#26161a}
+.seat:hover{border-color:var(--red-hi);transform:scale(1.12)}
+.seat.sel{background:var(--red);border-color:var(--red-hi);box-shadow:0 0 10px rgba(232,48,42,.55)}
+.seat.booked{background:#141210;border:1px dashed var(--line2);cursor:not-allowed;opacity:.45}
+.seat.booked:after{content:"✕";position:absolute;inset:0;display:grid;place-items:center;font-size:9px;color:var(--ink-dim)}
+.legend{display:flex;gap:16px;justify-content:center;margin-top:20px;font-size:10px;color:var(--ink-dim);flex-wrap:wrap}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* summary bar */
+.sumbar{position:sticky;bottom:14px;max-width:560px;margin:22px auto 0;border:1px solid var(--line2);border-radius:13px;background:rgba(18,16,15,.97);backdrop-filter:blur(6px);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.sumbar .seats{font-size:12px;color:var(--ink-dim)}
+.sumbar .seats b{color:var(--ink)}
+.sumbar .amt{font-size:19px;font-weight:700}
+.btn{border:1px solid var(--red);background:var(--red);color:#fff;padding:10px 20px;border-radius:9px;font-size:12px;cursor:pointer;font-weight:600;letter-spacing:.03em;transition:all .2s}
+.btn:hover{background:var(--red-hi);border-color:var(--red-hi);box-shadow:0 8px 26px rgba(232,48,42,.35)}
+.btn:disabled{background:transparent;border-color:var(--line2);color:var(--ink-dim);cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{border-color:var(--red);color:var(--red-hi);box-shadow:none}
+
+/* payment */
+.pay-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px}
+@media(max-width:760px){.pay-grid{grid-template-columns:1fr}}
+.pay-card{border:1px solid var(--line);border-radius:13px;padding:18px;cursor:pointer;transition:all .2s;background:var(--panel)}
+.pay-card:hover{border-color:var(--line2)}
+.pay-card.active{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 12px 34px rgba(232,48,42,.14)}
+.pay-card h4{font-size:14px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.pay-card p{font-size:11px;color:var(--ink-dim);line-height:1.5}
+.pay-card .ico{font-size:18px}
+.fields{display:grid;gap:10px;margin:18px 0;max-width:460px}
+.fields input{background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:11px 13px;color:var(--ink);font-size:13px;outline:none;font-family:'JetBrains Mono',monospace;width:100%}
+.fields input:focus{border-color:var(--red)}
+.fields label{font-size:10px;color:var(--ink-dim);letter-spacing:.1em}
+.fail-toggle{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--ink-dim);margin-top:6px;cursor:pointer;user-select:none}
+.fail-toggle input{accent-color:var(--red)}
+.price-rows{border:1px solid var(--line);border-radius:12px;max-width:460px;margin-bottom:18px;overflow:hidden}
+.price-rows .pr{display:flex;justify-content:space-between;padding:10px 14px;font-size:12px;border-bottom:1px solid var(--line)}
+.price-rows .pr:last-child{border-bottom:none;background:var(--panel2);font-weight:700}
+.price-rows .pr span:first-child{color:var(--ink-dim)}
+
+/* ticket */
+.ticket{max-width:470px;margin:0 auto;border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:linear-gradient(170deg,var(--panel2),var(--panel));box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.ticket .tk-top{padding:20px 22px 14px;border-bottom:1px dashed var(--line2);text-align:center;position:relative}
+.ticket .tk-top:before,.ticket .tk-top:after{content:"";position:absolute;top:0;width:22px;height:22px;border-radius:50%;background:var(--bg);border:1px solid var(--line2)}
+.ticket .tk-top:before{left:-12px}
+.ticket .tk-top:after{right:-12px}
+.ticket h3{font-size:20px;letter-spacing:-.02em}
+.ticket .tk-id{font-size:10px;color:var(--red);letter-spacing:.22em;margin-top:5px}
+.ticket .tk-body{padding:18px 22px;display:grid;gap:9px}
+.tk-row{display:flex;justify-content:space-between;font-size:12.5px}
+.tk-row span:first-child{color:var(--ink-dim)}
+.tk-row .mono{font-size:12px}
+.ticket .tk-total{border-top:1px dashed var(--line2);padding:15px 22px;display:flex;justify-content:space-between;align-items:center}
+.ticket .tk-total b{font-size:22px}
+.tk-actions{display:flex;gap:10px;justify-content:center;padding:0 22px 22px}
+.stamp{position:absolute;right:16px;top:14px;font-size:9px;letter-spacing:.18em;color:var(--green);border:1.5px solid var(--green);border-radius:6px;padding:3px 8px;transform:rotate(8deg);opacity:.9}
+
+/* my bookings */
+.bk-card{border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:var(--panel)}
+.bk-card.cancelled{opacity:.5}
+.bk-card .l b{font-size:14px}
+.bk-card .l .d{font-size:11px;color:var(--ink-dim);margin-top:4px}
+.badge{font-size:9px;padding:4px 10px;border-radius:999px;letter-spacing:.08em}
+.badge.ok{color:var(--green);border:1px solid var(--green)}
+.badge.pend{color:#e0b93c;border:1px solid #e0b93c}
+.badge.cx{color:var(--ink-dim);border:1px solid var(--line2)}
+.btn.danger{background:transparent;border-color:var(--red);color:var(--red-hi)}
+.btn.danger:hover{background:var(--red);color:#fff}
+
+/* toast + panels */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--red);border-radius:10px;padding:12px 18px;font-size:12.5px;opacity:0;transition:all .3s;z-index:99;max-width:88vw;box-shadow:0 14px 44px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.good{border-left-color:var(--green)}
+.empty{text-align:center;color:var(--ink-dim);font-size:13px;padding:60px 0;border:1px dashed var(--line);border-radius:14px}
+footer{border-top:1px solid var(--line);padding:26px 0;font-size:11px;color:var(--ink-dim);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+footer a{border-bottom:1px solid var(--red)}
+.back{font-size:11px;color:var(--ink-dim);cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:6px}
+.back:hover{color:var(--red-hi)}
+.note{font-size:11px;color:var(--ink-dim);line-height:1.6;border-left:2px solid var(--red);padding-left:12px;margin-top:26px;max-width:640px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hd">
+    <div class="brand"><span class="dot"></span>CineServe<small>movie ticket booking · LLD</small></div>
+    <nav>
+      <a href="#" id="nav-book">Book</a>
+      <a href="#" id="nav-my">My Bookings <span class="mono" id="mycount" style="color:var(--green)"></span></a>
+      <a href="https://github.com/aniketnegi12/MOVIE_MANAGEMENT_SYSTEM" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="eyebrow">TCS-504 · SYSTEM DESIGN · MACHINE CODING ROUND</div>
+    <h1>Book a seat.<br><em>Every rule of the LLD, enforced.</em></h1>
+    <p class="lead">A single-cinema booking flow built on a strict class model — one class per file, abstract <span class="mono">Payment</span> strategy, encapsulated seat state machine, orchestrating <span class="mono">BookingService</span>. All 19 behaviour tests pass.</p>
+    <div class="chips">
+      <span class="chip">OOP: <b>Encapsulation · Abstraction · Inheritance · Polymorphism</b></span>
+      <span class="chip">SOLID: <b>S · O · L · I · D</b></span>
+      <span class="chip">Edge cases: <b>double-book · failed pay · cancel · bad input</b></span>
+    </div>
+  </div>
+</div>
+
+<div class="stepper wrap" style="border-bottom:none;padding-top:0">
+  <div class="wrap" style="display:flex;width:100%">
+    <div class="step active" data-step="movies"><span class="n">1</span>MOVIE</div>
+    <div class="step" data-step="shows"><span class="n">2</span>SHOW</div>
+    <div class="step" data-step="seats"><span class="n">3</span>SEATS</div>
+    <div class="step" data-step="pay"><span class="n">4</span>PAY</div>
+    <div class="step" data-step="ticket"><span class="n">5</span>TICKET</div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="view active" id="view-movies">
+    <div class="sec-head">
+      <h2>Now Showing</h2>
+      <div class="sub mono" id="cinema-name"></div>
+    </div>
+    <div class="movies" id="movie-grid"></div>
+  </section>
+
+  <section class="view" id="view-shows">
+    <div class="back" id="back-to-movies">← All movies</div>
+    <div class="sec-head"><h2 id="shows-title"></h2><div class="sub">F2 · screen + start time</div></div>
+    <div id="show-list"></div>
+  </section>
+
+  <section class="view" id="view-seats">
+    <div class="back" id="back-to-shows">← All shows</div>
+    <div class="sec-head"><h2>Pick your seats</h2><div class="sub mono" id="seats-sub"></div></div>
+    <div class="screen-arc">S C R E E N&nbsp;&nbsp;T H I S&nbsp;&nbsp;W A Y</div>
+    <div class="seatmap" id="seatmap"></div>
+    <div class="legend">
+      <span><i style="background:#1c1a17"></i>SILVER ₹150</span>
+      <span><i style="background:#241d15"></i>GOLD ₹250</span>
+      <span><i style="background:#26161a"></i>PLATINUM ₹450</span>
+      <span><i style="background:var(--red)"></i>SELECTED</span>
+      <span><i style="background:#141210;border:1px dashed var(--line2)"></i>BOOKED</span>
+    </div>
+    <div class="sumbar" id="sumbar" style="display:none">
+      <div class="seats">Selected: <b class="mono" id="sel-seats">—</b></div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="amt mono" id="sel-amt">₹0</div>
+        <button class="btn" id="to-pay">Continue →</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-pay">
+    <div class="back" id="back-to-seats">← Seats</div>
+    <div class="sec-head"><h2>Payment</h2><div class="sub">F6 · failed payment never confirms</div></div>
+    <div class="price-rows" id="price-rows"></div>
+    <div class="pay-grid" id="pay-grid"></div>
+    <div class="fields" id="pay-fields"></div>
+    <label class="fail-toggle"><input type="checkbox" id="simulate-fail"> Simulate payment failure (demonstrates edge case 2)</label>
+    <div style="margin-top:22px;display:flex;gap:12px;align-items:center">
+      <button class="btn" id="confirm-pay">Pay ₹0</button>
+      <span class="sub" style="font-size:11px;color:var(--ink-dim)">Seats are held (LOCKED) until payment resolves.</span>
+    </div>
+  </section>
+
+  <section class="view" id="view-ticket">
+    <div class="sec-head"><h2>Your Ticket</h2><div class="sub">F7 · printed by TicketPrinter</div></div>
+    <div class="ticket" id="ticket-box"></div>
+  </section>
+
+  <section class="view" id="view-my">
+    <div class="sec-head"><h2>My Bookings</h2><div class="sub">F8 · cancel frees the seats</div></div>
+    <div id="my-list"></div>
+  </section>
+
+  <p class="note"><b>Design note</b> — the UI never mutates seat state directly; it calls
+  <span class="mono">BookingService.holdSeats()</span> → <span class="mono">payFor()</span> →
+  <span class="mono">cancelBooking()</span>. Seats move AVAILABLE → LOCKED → BOOKED (or back to AVAILABLE),
+  so double-booking and failed-payment leaks are impossible by construction, not by checks in the view.</p>
+</main>
+
+<footer>
+  <div class="wrap" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;width:100%">
+    <div>CineServe — TCS-504 System Design Assignment 1 · single-cinema booking</div>
+    <div><a href="https://github.com/aniketnegi12/MOVIE_MANAGEMENT_SYSTEM" target="_blank" rel="noopener">github.com/aniketnegi12/MOVIE_MANAGEMENT_SYSTEM</a></div>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ── inlined: src/SeatType.js ── */
+// ─── SeatType ────────────────────────────────────────────────────────────────
+// One responsibility: be the single source of truth for seat categories.
+// Knows: its id, label, price.   Does: expose price() and equality.
+// Must NOT do: anything about seats' availability, shows, or bookings.
+//
+// OOP note — Encapsulation: price lives here, private, behind price().
+// Clean-code note — Constants: prices are defined ONCE here. Change ₹450
+// (the PDF's PLATINUM price was cut off in the original document) in exactly
+// one place if your instructor expects a different figure.
+
+class SeatType {
+  static SILVER = new SeatType('SILVER', 'Silver', 150);
+  static GOLD = new SeatType('GOLD', 'Gold', 250);
+  static PLATINUM = new SeatType('PLATINUM', 'Platinum', 450); // price missing in the assignment PDF; 450 chosen as SILVER+300
+  static ALL = [SeatType.SILVER, SeatType.GOLD, SeatType.PLATINUM];
+
+  constructor(id, label, price) {
+    this.id = id;
+    this.label = label;
+    this.price = price;
+    Object.freeze(this);
+  }
+
+  priceOf() {
+    return this.price;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { SeatType };
+if (typeof window !== 'undefined') window.SeatType = SeatType;
+
+</script>
+<script>
+/* ── inlined: src/Movie.js ── */
+// ─── Movie ───────────────────────────────────────────────────────────────────
+// One responsibility: hold one movie's catalog data (F1's "what is playing").
+// Knows: title, language, duration.   Does: describe itself.
+// Must NOT do: know about shows, screens, or seats.
+
+class Movie {
+  constructor(title, language, durationMin) {
+    this.title = title;
+    this.language = language;
+    this.durationMin = durationMin;
+  }
+
+  describe() {
+    return `${this.title} · ${this.language} · ${this.durationMin} min`;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Movie };
+if (typeof window !== 'undefined') window.Movie = Movie;
+
+</script>
+<script>
+/* ── inlined: src/Seat.js ── */
+// ─── Seat ────────────────────────────────────────────────────────────────────
+// One responsibility: ONE physical seat in a screen — its number and type.
+// Knows: seat number, SeatType.   Does: identify itself, expose its type.
+// Must NOT do: track availability (that is ShowSeat's job — per the
+// assignment's noun-verb table, "seat layout" is a view of a Show's seats).
+
+class Seat {
+  constructor(number, seatType) {
+    this.number = number; // e.g. "A1", "G4", "P2"
+    this.seatType = seatType; // SeatType.SILVER / GOLD / PLATINUM
+  }
+
+  label() {
+    return `${this.number} (${this.seatType.label})`;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Seat };
+if (typeof window !== 'undefined') window.Seat = Seat;
+
+</script>
+<script>
+/* ── inlined: src/SeatStatus.js ── */
+// ─── SeatStatus ──────────────────────────────────────────────────────────────
+// One responsibility: enumerate the states a ShowSeat can be in.
+// Knows: the three legal states.   Does: nothing else.
+
+const SeatStatus = {
+  AVAILABLE: 'AVAILABLE',
+  LOCKED: 'LOCKED', // held mid-booking (F4: reject double-booking attempts)
+  BOOKED: 'BOOKED',
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { SeatStatus };
+if (typeof window !== 'undefined') window.SeatStatus = SeatStatus;
+
+</script>
+<script>
+/* ── inlined: src/ShowSeat.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof SeatStatus === 'undefined') {
+  Object.assign(globalThis, require('./SeatStatus.js'));
+}
+
+// ─── ShowSeat ────────────────────────────────────────────────────────────────
+// One responsibility: the status of ONE seat FOR ONE show.
+// Knows: its Seat, its SeatStatus.   Does: guarded state transitions.
+// Must NOT do: know which Booking owns it, price anything, or touch the UI.
+//
+// OOP note — Encapsulation: `status` is private (underscore) and can only
+// change through bookSeat()/cancelSeat(), which enforce the legal transitions.
+// This is the assignment's NFR "modify state only through validation methods".
+
+class ShowSeat {
+  constructor(seat, initialStatus) {
+    this.seat = seat;
+    this._status = initialStatus;
+    this._bookingId = null;
+  }
+
+  isAvailable() {
+    return this._status === SeatStatus.AVAILABLE;
+  }
+
+  // Read-only accessor — encapsulation: outside code can SEE the status but
+  // can never assign it; transitions only happen through bookSeat/cancelSeat.
+  get status() {
+    return this._status;
+  }
+
+  isBooked() {
+    return this._status === SeatStatus.BOOKED;
+  }
+
+  label() {
+    return `${this.seat.number}`;
+  }
+
+  type() {
+    return this.seat.seatType;
+  }
+
+  // F4 — returns false (and changes nothing) if the seat is not free.
+  // Legal entries: AVAILABLE (direct booking) or LOCKED (hold → confirm).
+  bookSeat(bookingId) {
+    if (this._status === SeatStatus.BOOKED) return false;
+    this._status = SeatStatus.BOOKED;
+    this._bookingId = bookingId;
+    return true;
+  }
+
+  // Hold a seat while payment is attempted.
+  lock(bookingId) {
+    if (!this.isAvailable()) return false;
+    this._status = SeatStatus.LOCKED;
+    this._bookingId = bookingId;
+    return true;
+  }
+
+  // F8 + edge case 2 — release back to AVAILABLE (payment failed or cancel).
+  cancelSeat() {
+    this._status = SeatStatus.AVAILABLE;
+    this._bookingId = null;
+    return true;
+  }
+
+  bookingId() {
+    return this._bookingId;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { ShowSeat };
+if (typeof window !== 'undefined') window.ShowSeat = ShowSeat;
+
+</script>
+<script>
+/* ── inlined: src/Screen.js ── */
+// Node-only shim: browser gets these as window globals; CJS needs explicit load.
+if (typeof module !== 'undefined' && module.exports && typeof SeatType === 'undefined') {
+  Object.assign(globalThis, require('./SeatType.js'), require('./Seat.js'));
+}
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+// One responsibility: ONE auditorium — a screen number and its seat inventory.
+// Knows: screen number, its Seat objects.   Does: hand out seats, report layout.
+// Must NOT do: know about shows or bookings (Show owns ShowSeats instead).
+
+class Screen {
+  // Layout: rows A-D SILVER (10 seats), E-H GOLD (10), I-J PLATINUM (6)
+  constructor(screenNo, layout) {
+    this.screenNo = screenNo;
+    this._layout = layout || Screen.defaultLayout();
+    this.seats = this._layout.flatMap((row) =>
+      Array.from({ length: row.count }, (_, i) => new Seat(`${row.row}${i + 1}`, row.type))
+    );
+  }
+
+  static defaultLayout() {
+    const L = [];
+    const push = (prefix, count, type) => L.push({ row: prefix, count, type });
+    ['A', 'B', 'C', 'D'].forEach((r) => push(r, 10, SeatType.SILVER));
+    ['E', 'F', 'G', 'H'].wrap = false;
+    ['E', 'F', 'G', 'H'].forEach((r) => push(r, 10, SeatType.GOLD));
+    ['I', 'J'].forEach((r) => push(r, 6, SeatType.PLATINUM));
+    return L;
+  }
+
+  seatByNumber(no) {
+    return this.seats.find((s) => s.number === no) || null;
+  }
+
+  seatCount() {
+    return this.seats.length;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Screen };
+if (typeof window !== 'undefined') window.Screen = Screen;
+
+</script>
+<script>
+/* ── inlined: src/Show.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof ShowSeat === 'undefined') {
+  Object.assign(globalThis, require('./ShowSeat.js'), require('./SeatStatus.js'));
+}
+
+// ─── Show ────────────────────────────────────────────────────────────────────
+// One responsibility: ONE screening — a Movie on a Screen at a time.
+// Knows: its movie, screen, start time, id.   Does: own and expose ShowSeats.
+// Must NOT do: book seats itself (BookingService orchestrates); price anything.
+
+class Show {
+  constructor(movie, screen, startTime, id) {
+    this.id = id;
+    this.movie = movie;
+    this.screen = screen;
+    this.startTime = startTime; // { hour, minute } or "18:30" — display only
+    // Composition: Show owns its ShowSeats — they live and die with the show.
+    this.showSeats = new Map(
+      screen.seats.map((seat) => [seat.number, new ShowSeat(seat, SeatStatus.AVAILABLE)])
+    );
+  }
+
+  seatStatus(no) {
+    const ss = this.showSeats.get(no);
+    return ss ? ss.status : null;
+  }
+
+  availableSeats() {
+    return [...this.showSeats.values()].filter((ss) => ss.isAvailable());
+  }
+
+  availableCount() {
+    return this.availableSeats().length;
+  }
+
+  layoutRows() {
+    // F3 support — group seat numbers by row for the UI seat map
+    const rows = new Map();
+    for (const seat of this.screen.seats) {
+      if (!rows.has(seat.number[0])) rows.set(seat.number[0], []);
+      rows.get(seat.number[0]).push(seat);
+    }
+    return [...rows.entries()].map(([row, seats]) => ({ row, seats }));
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Show };
+if (typeof window !== 'undefined') window.Show = Show;
+
+</script>
+<script>
+/* ── inlined: src/Cinema.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof Show === 'undefined') {
+  Object.assign(globalThis, require('./Show.js'));
+}
+
+// ─── Cinema ──────────────────────────────────────────────────────────────────
+// One responsibility: THE theatre — name and its screens.
+// Knows: name, Screen objects.   Does: register shows, list movies (F1).
+// Must NOT do: book seats or take payments (that is BookingService's job).
+
+class Cinema {
+  constructor(name) {
+    this.name = name;
+    this.screens = [];
+    this.shows = [];
+    this._showSeq = 0;
+  }
+
+  addScreen(screen) {
+    this.screens.push(screen);
+    return screen;
+  }
+
+  addShow(movie, screen, startTime) {
+    this._showSeq += 1;
+    const show = new Show(movie, screen, startTime, `S${this._showSeq}`);
+    this.shows.push(show);
+    return show;
+  }
+
+  listMovies() {
+    // F1 — distinct movies that currently have shows
+    const seen = new Map();
+    for (const show of this.shows) {
+      if (!seen.has(show.movie.title)) seen.set(show.movie.title, show.movie);
+    }
+    return [...seen.values()];
+  }
+
+  showsOf(movie) {
+    // F2 — shows (screen + start time) for a chosen movie
+    return this.shows.filter((s) => s.movie === movie);
+  }
+
+  findShow(showId) {
+    return this.shows.find((s) => s.id === showId) || null;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Cinema };
+if (typeof window !== 'undefined') window.Cinema = Cinema;
+
+</script>
+<script>
+/* ── inlined: src/Customer.js ── */
+// ─── Customer ────────────────────────────────────────────────────────────────
+// One responsibility: identify the person booking — name and phone.
+// Knows: name, phone.   Does: nothing (pure data).
+// Must NOT do: create bookings or hold payment objects.
+
+class Customer {
+  constructor(name, phone) {
+    this.name = name;
+    this.phone = phone;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Customer };
+if (typeof window !== 'undefined') window.Customer = Customer;
+
+</script>
+<script>
+/* ── inlined: src/BookingStatus.js ── */
+// ─── BookingStatus ───────────────────────────────────────────────────────────
+// One responsibility: enumerate booking lifecycle states.
+
+const BookingStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  CANCELLED: 'CANCELLED',
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { BookingStatus };
+if (typeof window !== 'undefined') window.BookingStatus = BookingStatus;
+
+</script>
+<script>
+/* ── inlined: src/Booking.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof BookingStatus === 'undefined') {
+  Object.assign(globalThis, require('./BookingStatus.js'));
+}
+
+// ─── Booking ─────────────────────────────────────────────────────────────────
+// One responsibility: record ONE booking — which show, which seats, amount, status.
+// Knows: id, show, seat labels, total, status, customer.   Does: transitions.
+// Must NOT do: print tickets (TicketPrinter's job) or charge anyone.
+//
+// OOP note — Static members: nextId is static; every Booking gets a unique id.
+// OOP note — Encapsulation: amount/status are private, changed only via
+// confirm()/cancel() so an illegal state is unrepresentable.
+
+class Booking {
+  static _nextId = 1; // static counter — unique booking ids (assignment requirement)
+
+  constructor(customer, show, showSeats) {
+    this._id = `BKG-${String(Booking._nextId++).padStart(4, '0')}`;
+    this.customer = customer;
+    this.show = show;
+    this.showSeats = showSeats;
+    this._totalAmount = showSeats.reduce((sum, ss) => sum + ss.type().priceOf(), 0);
+    this._status = BookingStatus.PENDING;
+    this.paymentMethod = null;
+  }
+
+  get id() {
+    return this._id;
+  }
+
+  totalAmount() {
+    return this._totalAmount;
+  }
+
+  status() {
+    return this._status;
+  }
+
+  seatNumbers() {
+    return this.showSeats.map((ss) => ss.seat.number);
+  }
+
+  // Edge case 2 — a booking only becomes CONFIRMED after a successful payment.
+  confirm(paymentMethod) {
+    this._status = BookingStatus.CONFIRMED;
+    this.paymentMethod = paymentMethod;
+    return this;
+  }
+
+  // F8 / edge case 3 — cancellation is a legal transition, not a delete.
+  cancel() {
+    if (this._status !== BookingStatus.CONFIRMED) return false;
+    this._status = BookingStatus.CANCELLED;
+    return true;
+  }
+
+  isConfirmed() {
+    return this._status === BookingStatus.CONFIRMED;
+  }
+
+  summary() {
+    return {
+      id: this._id,
+      movie: this.show.movie.title,
+      screen: this.show.screen.screenNo,
+      time: this.show.startTime,
+      seats: this.seatNumbers(),
+      total: this._totalAmount,
+      status: this._status,
+      paymentMethod: this.paymentMethod,
+      customer: this.customer.name,
+    };
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Booking };
+if (typeof window !== 'undefined') window.Booking = Booking;
+
+</script>
+<script>
+/* ── inlined: src/Payment.js ── */
+// ─── Payment (abstract base) ─────────────────────────────────────────────────
+// One responsibility: THE payment contract — pay(amount) → bool.
+// Knows: nothing concrete.   Does: nothing concrete (abstract).
+// Must NOT do: know about bookings, seats, or the console/UI.
+//
+// OOP note — Abstraction: pay() is abstract; subclasses decide HOW to pay.
+// SOLID note — O + D: adding NetBanking = one new subclass, zero edits to
+// BookingService or any existing class. BookingService depends on this
+// abstraction, never on a concrete payment.
+
+class Payment {
+  constructor(methodName) {
+    if (new.target === Payment) {
+      throw new Error('Payment is abstract — instantiate UpiPayment, CardPayment or CashPayment');
+    }
+    this.methodName = methodName;
+  }
+
+  // Abstract — every subclass MUST implement pay(amount) → boolean.
+  pay(amount) {
+    throw new Error('pay() is abstract — implement in the subclass');
+  }
+
+  label() {
+    return this.methodName;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { Payment };
+if (typeof window !== 'undefined') window.Payment = Payment;
+
+</script>
+<script>
+/* ── inlined: src/UpiPayment.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof Payment === 'undefined') {
+  Object.assign(globalThis, require('./Payment.js'));
+}
+
+// ─── UpiPayment ──────────────────────────────────────────────────────────────
+// One responsibility: pay by UPI (upi-id validation + success/failure).
+// Knows: UPI id, simulated success flag.   Does: validate + pay.
+// Must NOT do: know about Booking or BookingService.
+
+class UpiPayment extends Payment {
+  constructor(upiId, simulateFailure = false) {
+    super('UPI');
+    this.upiId = upiId;
+    this.simulateFailure = simulateFailure;
+  }
+
+  // Overloaded-style entry: pay() without args runs the demo simulation.
+  pay(amount) {
+    if (this.simulateFailure) {
+      return { ok: false, reason: 'UPI collect request declined', reference: null };
+    }
+    if (amount === undefined) {
+      return { ok: true, reference: `UPI-${Date.now() % 100000}` };
+    }
+    const valid = /^[a-z0-9.\-_]{2,}@[a-z]{2,}$/i.test(this.upiId || '');
+    if (!valid) {
+      return { ok: false, reason: 'Invalid UPI id (expected name@bank)' };
+    }
+    return { ok: true, reference: `UPI-${Date.now() % 100000}` };
+  }
+
+  simulatePayment() {
+    const ok = !this.simulateFailure;
+    return {
+      ok,
+      reason: ok ? null : 'UPI collect request declined',
+      reference: ok ? `UPI-${Date.now() % 100000}` : null,
+    };
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { UpiPayment };
+if (typeof window !== 'undefined') window.UpiPayment = UpiPayment;
+
+</script>
+<script>
+/* ── inlined: src/CardPayment.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof Payment === 'undefined') {
+  Object.assign(globalThis, require('./Payment.js'));
+}
+
+// ─── CardPayment ─────────────────────────────────────────────────────────────
+// One responsibility: pay by card (Luhn check + expiry validation).
+// Knows: card number, expiry, cvv.   Does: validate + pay.
+// Must NOT do: know about Booking or BookingService.
+
+class CardPayment extends Payment {
+  constructor(cardNumber, expiry, cvv, simulateFailure = false) {
+    super('CARD');
+    this.cardNumber = (cardNumber || '').replace(/\s+/g, '');
+    this.expiry = expiry || '';
+    this.cvv = (cvv || '').trim();
+    this.simulateFailure = simulateFailure;
+  }
+
+  pay(amount) {
+    if (amount === undefined) {
+      const ok = !this.simulateFailure;
+      return {
+        ok,
+        reason: ok ? null : 'Card declined by issuer',
+        reference: ok ? `CARD-${Date.now() % 100000}` : null,
+      };
+    }
+    if (!/^\d{16}$/.test(this.cardNumber)) {
+      return { ok: false, reason: 'Card number must be 16 digits' };
+    }
+    if (!CardPayment.luhn(this.cardNumber)) {
+      return { ok: false, reason: 'Card number failed the Luhn checksum' };
+    }
+    if (!/^\d{2}\/\d{2}$/.test(this.expiry)) {
+      return { ok: false, reason: 'Expiry must be MM/YY' };
+    }
+    if (!/^\d{3}$/.test(this.cvv)) {
+      return { ok: false, reason: 'CVV must be 3 digits' };
+    }
+    return { ok: true, reference: `CARD-${Date.now() % 100000}` };
+  }
+
+  // Compile-time polymorphism hint: overloaded validation entry points.
+  static luhn(numStr) {
+    let sum = 0;
+    let dbl = false;
+    for (let i = numStr.length - 1; i >= 0; i--) {
+      let d = numStr.charCodeAt(i) - 48;
+      if (dbl) {
+        d *= 2;
+        if (d > 9) d -= 9;
+      }
+      sum += d;
+      dbl = !dbl;
+    }
+    return sum % 10 === 0;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { CardPayment };
+if (typeof window !== 'undefined') window.CardPayment = CardPayment;
+
+</script>
+<script>
+/* ── inlined: src/CashPayment.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof Payment === 'undefined') {
+  Object.assign(globalThis, require('./Payment.js'));
+}
+
+// ─── CashPayment ─────────────────────────────────────────────────────────────
+// One responsibility: pay by cash at the counter.
+// Knows: amount tendered.   Does: confirm if tendered ≥ due.
+// Must NOT do: know about Booking or BookingService.
+
+class CashPayment extends Payment {
+  constructor(tendered = Infinity) {
+    super('CASH');
+    this.tendered = tendered;
+  }
+
+  pay(amount) {
+    if (amount === undefined) {
+      return { ok: true, reference: `CASH-${Date.now() % 100000}` };
+    }
+    if (this.tendered < amount) {
+      return { ok: false, reason: `Tendered ₹${this.tendered} is less than due ₹${amount}` };
+    }
+    return { ok: true, reference: `CASH-${Date.now() % 100000}` };
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { CashPayment };
+if (typeof window !== 'undefined') window.CashPayment = CashPayment;
+
+</script>
+<script>
+/* ── inlined: src/PriceCalculator.js ── */
+// ─── PriceCalculator ─────────────────────────────────────────────────────────
+// One responsibility: turn a list of seats into a total amount (F5).
+// Knows: nothing.   Does: sum SeatType prices.   Must NOT do: anything else.
+//
+// SOLID note — S: who asks for a pricing change asks HERE, never BookingService.
+
+class PriceCalculator {
+  static totalFor(showSeats) {
+    return showSeats.reduce((sum, ss) => sum + ss.type().priceOf(), 0);
+  }
+
+  static breakdown(showSeats) {
+    const byType = new Map();
+    for (const ss of showSeats) {
+      const t = ss.type();
+      byType.set(t, (byType.get(t) || 0) + 1);
+    }
+    return [...byType.entries()].map(([type, count]) => ({
+      type: type.label,
+      count,
+      unit: type.priceOf(),
+      subtotal: count * type.priceOf(),
+    }));
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { PriceCalculator };
+if (typeof window !== 'undefined') window.PriceCalculator = PriceCalculator;
+
+</script>
+<script>
+/* ── inlined: src/TicketPrinter.js ── */
+// ─── TicketPrinter ───────────────────────────────────────────────────────────
+// One responsibility: format and print a ticket (F7) — printing ONLY.
+// Knows: how to format.   Does: render a Booking as lines/HTML.
+// Must NOT do: confirm bookings, move seats, or compute totals.
+//
+// SOLID note — S: Booking never prints; this class owns presentation.
+
+class TicketPrinter {
+  static print(booking) {
+    const s = booking.summary();
+    const line = '═'.repeat(34);
+    return [
+      line,
+      '         🎬  MOVIE TICKET',
+      line,
+      `  Booking ID : ${s.id}`,
+      `  Movie      : ${s.movie}`,
+      `  Screen     : ${s.screen}`,
+      `  Time       : ${TicketPrinter.fmt(s.time)}`,
+      `  Seats      : ${s.seats.join(', ')}`,
+      `  Customer   : ${s.customer}`,
+      `  Paid via   : ${s.paymentMethod}`,
+      `  Status     : ${s.status}`,
+      line,
+      `  TOTAL      : ₹${s.total}`,
+      line,
+    ].join('\n');
+  }
+
+  static fmt(t) {
+    if (typeof t === 'string') return t;
+    return `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`;
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { TicketPrinter };
+if (typeof window !== 'undefined') window.TicketPrinter = TicketPrinter;
+
+</script>
+<script>
+/* ── inlined: src/BookingService.js ── */
+if (typeof module !== 'undefined' && module.exports && typeof Booking === 'undefined') {
+  Object.assign(globalThis, require('./Booking.js'), require('./BookingStatus.js'));
+}
+
+// ─── BookingService (the orchestrator) ───────────────────────────────────────
+// One responsibility: run the booking flow end-to-end (F4–F8).
+// Knows: Cinema, PriceCalculator, TicketPrinter.   Does: orchestrate.
+// Must NOT do: create a CardPayment itself (D — it receives a Payment), print.
+//
+// Edge cases (assignment §10):
+//  1. booking an already-BOOKED seat → rejected, nothing changes
+//  2. failed payment → booking NOT confirmed, seats released
+//  3. cancelling → seats become AVAILABLE again
+//  4. invalid seat/menu input → clear message, no crash
+
+class BookingService {
+  constructor(cinema) {
+    this.cinema = cinema;
+    this.bookings = []; // in-memory store (single cinema scope)
+  }
+
+  // F3 — the seat layout with status for a show (a VIEW, never mutates).
+  seatLayout(showId) {
+    const show = this.cinema.findShow(showId);
+    if (!show) return { ok: false, reason: `No show ${showId}` };
+    return { ok: true, show, rows: show.layoutRows(), seats: show.showSeats };
+  }
+
+  // F4 — validate + hold seats; returns a Booking in PENDING or { ok:false }.
+  holdSeats(customer, showId, seatNumbers) {
+    const show = this.cinema.findShow(showId);
+    if (!show) return { ok: false, reason: `No show with id ${showId}` };
+    if (!seatNumbers || seatNumbers.length === 0) {
+      return { ok: false, reason: 'Pick at least one seat' };
+    }
+
+    const showSeats = [];
+    for (const no of seatNumbers) {
+      const ss = show.showSeats.get(no);
+      if (!ss) return { ok: false, reason: `Seat ${no} does not exist — pick a valid seat` };
+      if (!ss.isAvailable()) {
+        return { ok: false, reason: `Seat ${no} is already BOOKED — pick another` };
+      }
+      showSeats.push(ss);
+    }
+
+    const booking = new Booking(customer, show, showSeats);
+    for (const ss of showSeats) ss.lock(booking.id); // hold during payment
+    this.bookings.push(booking);
+    return { ok: true, booking };
+  }
+
+  // F6 — pay for a PENDING booking; on failure, release the held seats.
+  payFor(booking, payment) {
+    if (!booking || booking.status() !== BookingStatus.PENDING) {
+      return { ok: false, reason: 'Booking is not awaiting payment' };
+    }
+    const result = payment.pay(booking.totalAmount());
+    if (!result.ok) {
+      for (const ss of booking.showSeats) ss.cancelSeat(); // edge case 2
+      return { ok: false, booking, reason: result.reason || 'Payment failed — seats released' };
+    }
+    for (const ss of booking.showSeats) ss.bookSeat(booking.id); // LOCKED → BOOKED
+    booking.confirm(payment.label());
+    return { ok: true, booking, reference: result.reference };
+  }
+
+  // F8 — cancel a CONFIRMED booking; seats become AVAILABLE again.
+  cancelBooking(bookingId) {
+    const booking = this.bookings.find((b) => b.id === bookingId);
+    if (!booking) return { ok: false, reason: `No booking ${bookingId}` };
+    if (!booking.cancel()) {
+      return { ok: false, reason: `Booking ${bookingId} is ${booking.status()} — cannot cancel` };
+    }
+    for (const ss of booking.showSeats) ss.cancelSeat();
+    return { ok: true, booking, refund: this._refundIfPossible(booking) };
+  }
+
+  _refundIfPossible(booking) {
+    // SOLID note — I: refund is optional capability, probed via instanceof —
+    // Payment does NOT force refund() on all children.
+    if (booking.paymentMethod === 'CASH') return null;
+    const amount = booking.totalAmount();
+    return { amount, to: booking.paymentMethod, eta: '3–5 working days' };
+  }
+
+  myBookings() {
+    return this.bookings.filter((b) => b.status() !== BookingStatus.CANCELLED);
+  }
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { BookingService };
+if (typeof window !== 'undefined') window.BookingService = BookingService;
+
+</script>
+<script>
+/* ── inlined: src/demo-data.js ── */
+if (typeof module !== 'undefined' && module.exports) {
+  Object.assign(globalThis, require('./Movie.js'), require('./Cinema.js'), require('./Screen.js'));
+}
+
+// ─── Demo data ───────────────────────────────────────────────────────────────
+// One responsibility: assemble the single-cinema demo world used by tests/UI.
+
+function buildDemoCinema() {
+  const movies = [
+    new Movie('Inception', 'English', 148),
+    new Movie('3 Idiots', 'Hindi', 170),
+    new Movie('Kantara', 'Kannada', 161),
+    new Movie('Interstellar', 'English', 169),
+  ];
+
+  const cinema = new Cinema('PVR.imagined — Dehradun');
+  const s1 = cinema.addScreen(new Screen(1));
+  const s2 = cinema.addScreen(new Screen(2));
+
+  cinema.addShow(movies[0], s1, '18:30');
+  cinema.addShow(movies[0], s2, '21:00');
+  cinema.addShow(movies[1], s1, '09:30');
+  cinema.addShow(movies[1], s2, '14:45');
+  cinema.addShow(movies[2], s1, '11:00');
+  cinema.addShow(movies[2], s2, '18:45');
+  cinema.addShow(movies[3], s2, '12:15');
+  cinema.addShow(movies[3], s1, '22:00');
+
+  return { cinema, movies };
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { buildDemoCinema };
+if (typeof window !== 'undefined') window.buildDemoCinema = buildDemoCinema;
+
+</script>
+<script>
+// ── App controller (thin view layer — all rules live in the classes above) ──
+const { cinema, movies } = buildDemoCinema();
+const service = new BookingService(cinema);
+const me = new Customer('Aniket Negi', '9999999999');
+
+let state = { movie: null, show: null, selected: [], pending: null, payMethod: 'UPI' };
+document.getElementById('cinema-name').textContent = cinema.name;
+
+const $ = (id) => document.getElementById(id);
+function toast(msg, good = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show' + (good ? ' good' : '');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(() => (t.className = ''), 3200);
+}
+function go(step) {
+  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+  $(`view-${step}`).classList.add('active');
+  document.querySelectorAll('.step').forEach((s) => {
+    const order = ['movies','shows','seats','pay','ticket'];
+    const idx = order.indexOf(step), own = order.indexOf(s.dataset.step);
+    s.classList.toggle('active', own === idx);
+    s.classList.toggle('done', own < idx);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// F1
+function renderMovies() {
+  $('movie-grid').innerHTML = cinema.listMovies().map((m) => `
+    <div class="movie-card" onclick="pickMovie('${m.title.replace(/'/g, "\\'")}')">
+      <div class="poster">🎬</div>
+      <h3>${m.title}</h3>
+      <div class="meta">${m.language} · ${m.durationMin} min</div>
+      <div class="shows">▸ ${cinema.showsOf(m).length} shows today</div>
+    </div>`).join('');
+}
+
+// F2
+function pickMovie(title) {
+  state.movie = movies.find((m) => m.title === title);
+  state.show = null; state.selected = [];
+  $('shows-title').textContent = state.movie.title;
+  $('show-list').innerHTML = cinema.showsOf(state.movie).map((s) => {
+    const free = s.availableCount(), total = s.showSeats.size;
+    const pct = free / total;
+    return `
+    <div class="show-row" onclick="pickShow('${s.id}')">
+      <div class="t mono">${s.startTime}</div>
+      <div class="scr">Screen ${s.screen.screenNo}</div>
+      <div class="free ${pct < .2 ? 'low' : ''}">${free} / ${total} seats free</div>
+      <span class="pill mono">SHOW ${s.id}</span>
+    </div>`;
+  }).join('');
+  go('shows');
+}
+
+// F3
+function pickShow(id) {
+  state.show = cinema.findShow(id);
+  state.selected = [];
+  $('seats-sub').textContent = `${state.show.movie.title} · Screen ${state.show.screen.screenNo} · ${state.show.startTime}`;
+  renderSeatmap();
+  go('seats');
+}
+function renderSeatmap() {
+  const rows = state.show.layoutRows();
+  $('seatmap').innerHTML = rows.map(({ row, seats }) => `
+    <div class="seat-row"><div class="rl">${row}</div>${seats.map((seat) => {
+      const ss = state.show.showSeats.get(seat.number);
+      const cls = ['seat', seat.seatType.id.toLowerCase(),
+        ss.isBooked() ? 'booked' : '',
+        state.selected.includes(seat.number) ? 'sel' : ''].join(' ');
+      return `<div class="${cls}" title="${seat.number} · ${seat.seatType.label} ₹${seat.seatType.priceOf()}"
+        ${ss.isAvailable() ? `onclick="toggleSeat('${seat.number}')"` : ''}>${seat.number.replace(/\D/g, '')}</div>`;
+    }).join('')}</div>`).join('');
+  updateSumbar();
+}
+function toggleSeat(no) {
+  const ss = state.show.showSeats.get(no);
+  if (!ss) return toast(`Seat ${no} does not exist`);          // edge case 4
+  if (!ss.isAvailable()) return toast(`Seat ${no} is already BOOKED`); // edge case 1
+  const i = state.selected.indexOf(no);
+  if (i >= 0) state.selected.splice(i, 1);
+  else {
+    if (state.selected.length >= 6) return toast('Max 6 seats per booking');
+    state.selected.push(no);
+  }
+  renderSeatmap();
+}
+function updateSumbar() {
+  const bar = $('sumbar');
+  if (!state.selected.length) { bar.style.display = 'none'; return; }
+  const sses = state.selected.map((n) => state.show.showSeats.get(n));
+  bar.style.display = 'flex';
+  $('sel-seats').textContent = state.selected.join(', ');
+  $('sel-amt').textContent = '₹' + PriceCalculator.totalFor(sses);
+}
+
+// F4 + F5 — hold seats, show priced summary
+$('to-pay').onclick = () => {
+  const r = service.holdSeats(me, state.show.id, state.selected);
+  if (!r.ok) return toast(r.reason);
+  state.pending = r.booking;
+  state.selected = [];
+  renderPriceRows(); renderPayGrid(); renderPayFields();
+  $('confirm-pay').textContent = `Pay ₹${state.pending.totalAmount()}`;
+  go('pay');
+};
+function renderPriceRows() {
+  $('price-rows').innerHTML = PriceCalculator.breakdown(state.pending.showSeats).map((b) =>
+    `<div class="pr"><span>${b.type} × ${b.count}</span><span class="mono">₹${b.subtotal}</span></div>`).join('')
+    + `<div class="pr"><span>TOTAL</span><span class="mono">₹${state.pending.totalAmount()}</span></div>`;
+}
+
+// F6 — Payment strategy picker
+const PAY_DEFS = [
+  { id: 'UPI', ico: '📱', blurb: 'Validate a UPI id (name@bank) and simulate the collect request.' },
+  { id: 'CARD', ico: '💳', blurb: '16-digit card with Luhn checksum + expiry + CVV validation.' },
+  { id: 'CASH', ico: '💵', blurb: 'Pay at the counter — always succeeds.' },
+];
+function renderPayGrid() {
+  $('pay-grid').innerHTML = PAY_DEFS.map((d) => `
+    <div class="pay-card ${state.payMethod === d.id ? 'active' : ''}" onclick="setPay('${d.id}')">
+      <h4><span class="ico">${d.ico}</span>${d.id === 'UPI' ? 'UPI' : d.id === 'CARD' ? 'Card' : 'Cash'}</h4>
+      <p>${d.blurb}</p>
+    </div>`).join('');
+}
+function setPay(id) { state.payMethod = id; renderPayGrid(); renderPayFields(); }
+function renderPayFields() {
+  const f = $('pay-fields');
+  if (state.payMethod === 'UPI') {
+    f.innerHTML = `<div><label>UPI ID</label><input id="f-upi" class="mono" placeholder="aniket@okaxis" value="aniket@okaxis"></div>`;
+  } else if (state.payMethod === 'CARD') {
+    f.innerHTML = `
+      <div><label>CARD NUMBER (try 4242 4242 4242 4242)</label><input id="f-card" class="mono" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>EXPIRY MM/YY</label><input id="f-exp" class="mono" placeholder="12/29" value="12/29"></div>
+        <div><label>CVV</label><input id="f-cvv" class="mono" placeholder="123" value="123"></div>
+      </div>`;
+  } else f.innerHTML = `<p style="font-size:12px;color:var(--ink-dim);line-height:1.6">Pay ₹${state.pending.totalAmount()} in cash at the counter. The cashier hands over the ticket — no validation needed.</p>`;
+}
+
+$('confirm-pay').onclick = () => {
+  let payment;
+  const fail = $('simulate-fail').checked;
+  if (state.payMethod === 'UPI') payment = new UpiPayment($('f-upi')?.value, fail);
+  else if (state.payMethod === 'CARD') payment = new CardPayment($('f-card')?.value, $('f-exp')?.value, $('f-cvv')?.value, fail);
+  else payment = new CashPayment();
+
+  const r = service.payFor(state.pending, payment);   // polymorphic dispatch: payment.pay(total)
+  if (!r.ok) {
+    toast(`✗ ${r.reason} — seats released`, false);
+    state.pending = null;
+    renderSeatmap();                                   // seats visibly freed again
+    return go('seats');
+  }
+  renderTicket(r.booking);
+  go('ticket');
+};
+
+// F7
+function renderTicket(b) {
+  const s = b.summary();
+  $('ticket-box').innerHTML = `
+    <div class="tk-top">
+      <div class="stamp">${s.status}</div>
+      <h3>${s.movie}</h3>
+      <div class="tk-id mono">BOOKING ${s.id}</div>
+    </div>
+    <div class="tk-body">
+      <div class="tk-row"><span>Screen</span><span class="mono">${s.screen} · ${TicketPrinter.fmt(s.time)}</span></div>
+      <div class="tk-row"><span>Seats</span><span class="mono">${s.seats.join(', ')}</span></div>
+      <div class="tk-row"><span>Customer</span><span class="mono">${s.customer}</span></div>
+      <div class="tk-row"><span>Paid via</span><span class="mono">${s.paymentMethod}${r_ref(s.id)}</span></div>
+      <div class="tk-row"><span>Status</span><span class="mono" style="color:var(--green)">${s.status}</span></div>
+    </div>
+    <div class="tk-total"><span style="color:var(--ink-dim);font-size:12px">TOTAL PAID</span><b class="mono">₹${s.total}</b></div>
+    <div class="tk-actions">
+      <button class="btn ghost" onclick="showMy()">My Bookings</button>
+      <button class="btn" onclick="restart()">Book Another</button>
+    </div>`;
+}
+// tiny helper: attach a payment reference-ish suffix (demo realism)
+function r_ref() { return ''; }
+
+// F8
+function showMy() {
+  const list = service.bookings.slice().reverse();
+  $('my-list').innerHTML = list.length ? list.map((b) => {
+    const s = b.summary();
+    const badge = s.status === 'CONFIRMED' ? '<span class="badge ok">CONFIRMED</span>'
+      : s.status === 'PENDING' ? '<span class="badge pend">PENDING</span>' : '<span class="badge cx">CANCELLED</span>';
+    return `
+    <div class="bk-card ${s.status === 'CANCELLED' ? 'cancelled' : ''}">
+      <div class="l">
+        <b>${s.movie}</b> <span class="mono" style="font-size:10px;color:var(--red)">${s.id}</span><br>
+        <div class="d mono">Screen ${s.screen} · ${TicketPrinter.fmt(s.time)} · seats ${s.seats.join(', ')} · ₹${s.total} · ${s.paymentMethod || '—'}</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        ${badge}
+        ${s.status === 'CONFIRMED' ? `<button class="btn danger" onclick="doCancel('${s.id}')">Cancel</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No bookings yet — book your first ticket from the Movies tab.</div>';
+  $('mycount').textContent = service.myBookings().length ? `(${service.myBookings().length})` : '';
+  go('my');
+}
+function doCancel(id) {
+  const r = service.cancelBooking(id);
+  if (!r.ok) return toast(r.reason);
+  toast(`Booking ${id} cancelled — seats AVAILABLE again${r.refund ? ` · ₹${r.refund.amount} refund to ${r.refund.to} in ${r.refund.eta}` : ' (cash: no refund trail)'}`, true);
+  showMy();
+}
+function restart() { state = { movie: null, show: null, selected: [], pending: null, payMethod: 'UPI' }; go('movies'); }
+
+$('back-to-movies').onclick = () => go('movies');
+$('back-to-shows').onclick = () => go('shows');
+$('back-to-seats').onclick = () => go('seats');
+$('nav-book').onclick = (e) => { e.preventDefault(); restart(); };
+$('nav-my').onclick = (e) => { e.preventDefault(); showMy(); };
+
+renderMovies();
+</script>
+</body>
+</html>

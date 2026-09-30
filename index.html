@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineServe — Movie Ticket Booking · System Design LLD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0908; --panel:#121010; --panel2:#171413; --ink:#f2efe9; --ink-dim:#9c968d;
+  --red:#e8302a; --red-hi:#ff6b61; --green:#3ecf6b; --line:#26221f; --line2:#37312c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh}
+.mono{font-family:'JetBrains Mono',monospace}
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+
+/* header */
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,9,8,.92);backdrop-filter:blur(8px);z-index:10}
+.hd{display:flex;align-items:center;justify-content:space-between;height:62px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.02em;font-size:17px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 14px rgba(232,48,42,.8)}
+.brand small{color:var(--ink-dim);font-weight:400;font-size:11px;margin-left:6px}
+.hd nav{display:flex;gap:20px;font-size:12px;color:var(--ink-dim)}
+.hd nav a:hover{color:var(--red-hi)}
+.feat{display:flex;gap:14px;font-size:10px;color:var(--ink-dim)}
+.feat b{color:var(--green);font-weight:600}
+
+/* hero */
+.hero{padding:58px 0 44px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero:before{content:"";position:absolute;top:-180px;left:50%;transform:translateX(-50%);width:640px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(232,48,42,.22),transparent 65%);pointer-events:none}
+.eyebrow{font-size:10px;letter-spacing:.28em;color:var(--red);margin-bottom:16px}
+h1{font-size:clamp(34px,6vw,56px);letter-spacing:-.04em;line-height:1.02;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--ink-dim)}
+.lead{color:var(--ink-dim);font-size:15px;max-width:560px;line-height:1.65;margin-bottom:26px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);border-radius:999px;padding:6px 12px;font-size:10px;color:var(--ink-dim)}
+.chip b{color:var(--ink);font-weight:600}
+
+/* stepper */
+.stepper{display:flex;gap:0;border-bottom:1px solid var(--line);position:sticky;top:62px;background:rgba(10,9,8,.94);z-index:9}
+.step{flex:1;text-align:center;padding:13px 4px;font-size:11px;color:var(--ink-dim);border-bottom:2px solid transparent;cursor:pointer;letter-spacing:.04em}
+.step.active{color:var(--ink);border-bottom-color:var(--red)}
+.step.done{color:var(--green)}
+.step .n{display:inline-block;width:18px;height:18px;line-height:18px;border:1px solid var(--line2);border-radius:50%;margin-right:7px;font-size:9px}
+.step.active .n{border-color:var(--red);color:var(--red)}
+.step.done .n{border-color:var(--green);color:var(--green)}
+
+main{padding:34px 0 90px}
+.view{display:none;animation:fade .35s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+.sec-head h2{font-size:22px;letter-spacing:-.02em}
+.sec-head .sub{font-size:12px;color:var(--ink-dim)}
+
+/* movie cards */
+.movies{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.movie-card{border:1px solid var(--line);border-radius:14px;padding:20px;background:linear-gradient(160deg,var(--panel2),var(--panel));cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s;position:relative;overflow:hidden}
+.movie-card:hover{border-color:var(--red);transform:translateY(-3px);box-shadow:0 16px 40px rgba(232,48,42,.13)}
+.movie-card .poster{height:86px;border-radius:10px;margin-bottom:16px;background:radial-gradient(circle at 30% 20%,rgba(232,48,42,.28),transparent 60%),linear-gradient(135deg,#1a1512,#0d0b0a);display:grid;place-items:center;font-size:26px}
+.movie-card h3{font-size:16px;margin-bottom:6px;letter-spacing:-.01em}
+.movie-card .meta{font-size:11px;color:var(--ink-dim)}
+.movie-card .shows{margin-top:12px;font-size:10px;color:var(--green)}
+
+/* show rows */
+.show-row{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:10px;cursor:pointer;transition:border-color .2s,transform .2s;background:var(--panel)}
+.show-row:hover{border-color:var(--red);transform:translateX(4px)}
+.show-row .t{font-size:16px;font-weight:600;min-width:74px}
+.show-row .scr{font-size:12px;color:var(--ink-dim)}
+.show-row .free{font-size:11px;color:var(--green)}
+.show-row .free.low{color:var(--red-hi)}
+.pill{font-size:9px;border:1px solid var(--line2);color:var(--ink-dim);border-radius:999px;padding:3px 9px;letter-spacing:.08em}
+
+/* seat map */
+.screen-arc{height:42px;margin:8px auto 22px;max-width:520px;border-bottom:3px solid var(--line2);border-radius:0 0 50% 50%/0 0 100% 100%;display:grid;place-items:center;font-size:9px;letter-spacing:.3em;color:var(--ink-dim)}
+.seatmap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seat-row{display:flex;align-items:center;gap:6px;justify-content:center}
+.seat-row .rl{width:16px;font-size:9px;color:var(--ink-dim);text-align:center}
+.seat{width:26px;height:24px;border-radius:6px 6px 3px 3px;border:1px solid var(--line2);cursor:pointer;transition:all .15s;position:relative}
+.seat.silver{background:#1c1a17}
+.seat.gold{background:#241d15}
+.seat.platinum{background:#26161a}
+.seat:hover{border-color:var(--red-hi);transform:scale(1.12)}
+.seat.sel{background:var(--red);border-color:var(--red-hi);box-shadow:0 0 10px rgba(232,48,42,.55)}
+.seat.booked{background:#141210;border:1px dashed var(--line2);cursor:not-allowed;opacity:.45}
+.seat.booked:after{content:"✕";position:absolute;inset:0;display:grid;place-items:center;font-size:9px;color:var(--ink-dim)}
+.legend{display:flex;gap:16px;justify-content:center;margin-top:20px;font-size:10px;color:var(--ink-dim);flex-wrap:wrap}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* summary bar */
+.sumbar{position:sticky;bottom:14px;max-width:560px;margin:22px auto 0;border:1px solid var(--line2);border-radius:13px;background:rgba(18,16,15,.97);backdrop-filter:blur(6px);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.sumbar .seats{font-size:12px;color:var(--ink-dim)}
+.sumbar .seats b{color:var(--ink)}
+.sumbar .amt{font-size:19px;font-weight:700}
+.btn{border:1px solid var(--red);background:var(--red);color:#fff;padding:10px 20px;border-radius:9px;font-size:12px;cursor:pointer;font-weight:600;letter-spacing:.03em;transition:all .2s}
+.btn:hover{background:var(--red-hi);border-color:var(--red-hi);box-shadow:0 8px 26px rgba(232,48,42,.35)}
+.btn:disabled{background:transparent;border-color:var(--line2);color:var(--ink-dim);cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{border-color:var(--red);color:var(--red-hi);box-shadow:none}
+
+/* payment */
+.pay-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px}
+@media(max-width:760px){.pay-grid{grid-template-columns:1fr}}
+.pay-card{border:1px solid var(--line);border-radius:13px;padding:18px;cursor:pointer;transition:all .2s;background:var(--panel)}
+.pay-card:hover{border-color:var(--line2)}
+.pay-card.active{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 12px 34px rgba(232,48,42,.14)}
+.pay-card h4{font-size:14px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.pay-card p{font-size:11px;color:var(--ink-dim);line-height:1.5}
+.pay-card .ico{font-size:18px}
+.fields{display:grid;gap:10px;margin:18px 0;max-width:460px}
+.fields input{background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:11px 13px;color:var(--ink);font-size:13px;outline:none;font-family:'JetBrains Mono',monospace;width:100%}
+.fields input:focus{border-color:var(--red)}
+.fields label{font-size:10px;color:var(--ink-dim);letter-spacing:.1em}
+.fail-toggle{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--ink-dim);margin-top:6px;cursor:pointer;user-select:none}
+.fail-toggle input{accent-color:var(--red)}
+.price-rows{border:1px solid var(--line);border-radius:12px;max-width:460px;margin-bottom:18px;overflow:hidden}
+.price-rows .pr{display:flex;justify-content:space-between;padding:10px 14px;font-size:12px;border-bottom:1px solid var(--line)}
+.price-rows .pr:last-child{border-bottom:none;background:var(--panel2);font-weight:700}
+.price-rows .pr span:first-child{color:var(--ink-dim)}
+
+/* ticket */
+.ticket{max-width:470px;margin:0 auto;border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:linear-gradient(170deg,var(--panel2),var(--panel));box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.ticket .tk-top{padding:20px 22px 14px;border-bottom:1px dashed var(--line2);text-align:center;position:relative}
+.ticket .tk-top:before,.ticket .tk-top:after{content:"";position:absolute;top:0;width:22px;height:22px;border-radius:50%;background:var(--bg);border:1px solid var(--line2)}
+.ticket .tk-top:before{left:-12px}
+.ticket .tk-top:after{right:-12px}
+.ticket h3{font-size:20px;letter-spacing:-.02em}
+.ticket .tk-id{font-size:10px;color:var(--red);letter-spacing:.22em;margin-top:5px}
+.ticket .tk-body{padding:18px 22px;display:grid;gap:9px}
+.tk-row{display:flex;justify-content:space-between;font-size:12.5px}
+.tk-row span:first-child{color:var(--ink-dim)}
+.tk-row .mono{font-size:12px}
+.ticket .tk-total{border-top:1px dashed var(--line2);padding:15px 22px;display:flex;justify-content:space-between;align-items:center}
+.ticket .tk-total b{font-size:22px}
+.tk-actions{display:flex;gap:10px;justify-content:center;padding:0 22px 22px}
+.stamp{position:absolute;right:16px;top:14px;font-size:9px;letter-spacing:.18em;color:var(--green);border:1.5px solid var(--green);border-radius:6px;padding:3px 8px;transform:rotate(8deg);opacity:.9}
+
+/* my bookings */
+.bk-card{border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:var(--panel)}
+.bk-card.cancelled{opacity:.5}
+.bk-card .l b{font-size:14px}
+.bk-card .l .d{font-size:11px;color:var(--ink-dim);margin-top:4px}
+.badge{font-size:9px;padding:4px 10px;border-radius:999px;letter-spacing:.08em}
+.badge.ok{color:var(--green);border:1px solid var(--green)}
+.badge.pend{color:#e0b93c;border:1px solid #e0b93c}
+.badge.cx{color:var(--ink-dim);border:1px solid var(--line2)}
+.btn.danger{background:transparent;border-color:var(--red);color:var(--red-hi)}
+.btn.danger:hover{background:var(--red);color:#fff}
+
+/* toast + panels */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--red);border-radius:10px;padding:12px 18px;font-size:12.5px;opacity:0;transition:all .3s;z-index:99;max-width:88vw;box-shadow:0 14px 44px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.good{border-left-color:var(--green)}
+.empty{text-align:center;color:var(--ink-dim);font-size:13px;padding:60px 0;border:1px dashed var(--line);border-radius:14px}
+footer{border-top:1px solid var(--line);padding:26px 0;font-size:11px;color:var(--ink-dim);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+footer a{border-bottom:1px solid var(--red)}
+.back{font-size:11px;color:var(--ink-dim);cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:6px}
+.back:hover{color:var(--red-hi)}
+.note{font-size:11px;color:var(--ink-dim);line-height:1.6;border-left:2px solid var(--red);padding-left:12px;margin-top:26px;max-width:640px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hd">
+    <div class="brand"><span class="dot"></span>CineServe<small>movie ticket booking · LLD</small></div>
+    <nav>
+      <a href="#" id="nav-book">Book</a>
+      <a href="#" id="nav-my">My Bookings <span class="mono" id="mycount" style="color:var(--green)"></span></a>
+      <a href="https://github.com/aniketnegi12/MOVIE_MANAGEMENT_SYSTEM" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="eyebrow">TCS-504 · SYSTEM DESIGN · MACHINE CODING ROUND</div>
+    <h1>Book a seat.<br><em>Every rule of the LLD, enforced.</em></h1>
+    <p class="lead">A single-cinema booking flow built on a strict class model — one class per file, abstract <span class="mono">Payment</span> strategy, encapsulated seat state machine, orchestrating <span class="mono">BookingService</span>. All 19 behaviour tests pass.</p>
+    <div class="chips">
+      <span class="chip">OOP: <b>Encapsulation · Abstraction · Inheritance · Polymorphism</b></span>
+      <span class="chip">SOLID: <b>S · O · L · I · D</b></span>
+      <span class="chip">Edge cases: <b>double-book · failed pay · cancel · bad input</b></span>
+    </div>
+  </div>
+</div>
+
+<div class="stepper wrap" style="border-bottom:none;padding-top:0">
+  <div class="wrap" style="display:flex;width:100%">
+    <div class="step active" data-step="movies"><span class="n">1</span>MOVIE</div>
+    <div class="step" data-step="shows"><span class="n">2</span>SHOW</div>
+    <div class="step" data-step="seats"><span class="n">3</span>SEATS</div>
+    <div class="step" data-step="pay"><span class="n">4</span>PAY</div>
+    <div class="step" data-step="ticket"><span class="n">5</span>TICKET</div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="view active" id="view-movies">
+    <div class="sec-head">
+      <h2>Now Showing</h2>
+      <div class="sub mono" id="cinema-name"></div>
+    </div>
+    <div class="movies" id="movie-grid"></div>
+  </section>
+
+  <section class="view" id="view-shows">
+    <div class="back" id="back-to-movies">← All movies</div>
+    <div class="sec-head"><h2 id="shows-title"></h2><div class="sub">F2 · screen + start time</div></div>
+    <div id="show-list"></div>
+  </section>
+
+  <section class="view" id="view-seats">
+    <div class="back" id="back-to-shows">← All shows</div>
+    <div class="sec-head"><h2>Pick your seats</h2><div class="sub mono" id="seats-sub"></div></div>
+    <div class="screen-arc">S C R E E N&nbsp;&nbsp;T H I S&nbsp;&nbsp;W A Y</div>
+    <div class="seatmap" id="seatmap"></div>
+    <div class="legend">
+      <span><i style="background:#1c1a17"></i>SILVER ₹150</span>
+      <span><i style="background:#241d15"></i>GOLD ₹250</span>
+      <span><i style="background:#26161a"></i>PLATINUM ₹450</span>
+      <span><i style="background:var(--red)"></i>SELECTED</span>
+      <span><i style="background:#141210;border:1px dashed var(--line2)"></i>BOOKED</span>
+    </div>
+    <div class="sumbar" id="sumbar" style="display:none">
+      <div class="seats">Selected: <b class="mono" id="sel-seats">—</b></div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="amt mono" id="sel-amt">₹0</div>
+        <button class="btn" id="to-pay">Continue →</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-pay">
+    <div class="back" id="back-to-seats">← Seats</div>
+    <div class="sec-head"><h2>Payment</h2><div class="sub">F6 · failed payment never confirms</div></div>
+    <div class="price-rows" id="price-rows"></div>
+    <div class="pay-grid" id="pay-grid"></div>
+    <div class="fields" id="pay-fields"></div>
+    <label class="fail-toggle"><input type="checkbox" id="simulate-fail"> Simulate payment failure (demonstrates edge case 2)</label>
+    <div style="margin-top:22px;display:flex;gap:12px;align-items:center">
+      <button class="btn" id="confirm-pay">Pay ₹0</button>
+      <span class="sub" style="font-size:11px;color:var(--ink-dim)">Seats are held (LOCKED) until payment resolves.</span>
+    </div>
+  </section>
+
+  <section class="view" id="view-ticket">
+    <div class="sec-head"><h2>Your Ticket</h2><div class="sub">F7 · printed by TicketPrinter</div></div>
+    <div class="ticket" id="ticket-box"></div>
+  </section>
+
+  <section class="view" id="view-my">
+    <div class="sec-head"><h2>My Bookings</h2><div class="sub">F8 · cancel frees the seats</div></div>
+    <div id="my-list"></div>
+  </section>
+
+  <p class="note"><b>Design note</b> — the UI never mutates seat state directly; it calls
+  <span class="mono">BookingService.holdSeats()</span> → <span class="mono">payFor()</span> →
+  <span class="mono">cancelBooking()</span>. Seats move AVAILABLE → LOCKED → BOOKED (or back to AVAILABLE),
+  so double-booking and failed-payment leaks are impossible by construction, not by checks in the view.</p>
+</main>
+
+<footer>
+  <div class="wrap" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;width:100%">
+    <div>CineServe — TCS-504 System Design Assignment 1 · single-cinema booking</div>
+    <div><a href="https://github.com/aniketnegi12/MOVIE_MANAGEMENT_SYSTEM" target="_blank" rel="noopener">github.com/aniketnegi12/MOVIE_MANAGEMENT_SYSTEM</a></div>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script src="src/SeatType.js"></script>
+<script src="src/Movie.js"></script>
+<script src="src/Seat.js"></script>
+<script src="src/SeatStatus.js"></script>
+<script src="src/ShowSeat.js"></script>
+<script src="src/Screen.js"></script>
+<script src="src/Show.js"></script>
+<script src="src/Cinema.js"></script>
+<script src="src/Customer.js"></script>
+<script src="src/BookingStatus.js"></script>
+<script src="src/Booking.js"></script>
+<script src="src/Payment.js"></script>
+<script src="src/UpiPayment.js"></script>
+<script src="src/CardPayment.js"></script>
+<script src="src/CashPayment.js"></script>
+<script src="src/PriceCalculator.js"></script>
+<script src="src/TicketPrinter.js"></script>
+<script src="src/BookingService.js"></script>
+<script src="src/demo-data.js"></script>
+<script>
+// ── App controller (thin view layer — all rules live in the classes above) ──
+const { cinema, movies } = buildDemoCinema();
+const service = new BookingService(cinema);
+const me = new Customer('Aniket Negi', '9999999999');
+
+let state = { movie: null, show: null, selected: [], pending: null, payMethod: 'UPI' };
+document.getElementById('cinema-name').textContent = cinema.name;
+
+const $ = (id) => document.getElementById(id);
+function toast(msg, good = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show' + (good ? ' good' : '');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(() => (t.className = ''), 3200);
+}
+function go(step) {
+  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+  $(`view-${step}`).classList.add('active');
+  document.querySelectorAll('.step').forEach((s) => {
+    const order = ['movies','shows','seats','pay','ticket'];
+    const idx = order.indexOf(step), own = order.indexOf(s.dataset.step);
+    s.classList.toggle('active', own === idx);
+    s.classList.toggle('done', own < idx);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// F1
+function renderMovies() {
+  $('movie-grid').innerHTML = cinema.listMovies().map((m) => `
+    <div class="movie-card" onclick="pickMovie('${m.title.replace(/'/g, "\\'")}')">
+      <div class="poster">🎬</div>
+      <h3>${m.title}</h3>
+      <div class="meta">${m.language} · ${m.durationMin} min</div>
+      <div class="shows">▸ ${cinema.showsOf(m).length} shows today</div>
+    </div>`).join('');
+}
+
+// F2
+function pickMovie(title) {
+  state.movie = movies.find((m) => m.title === title);
+  state.show = null; state.selected = [];
+  $('shows-title').textContent = state.movie.title;
+  $('show-list').innerHTML = cinema.showsOf(state.movie).map((s) => {
+    const free = s.availableCount(), total = s.showSeats.size;
+    const pct = free / total;
+    return `
+    <div class="show-row" onclick="pickShow('${s.id}')">
+      <div class="t mono">${s.startTime}</div>
+      <div class="scr">Screen ${s.screen.screenNo}</div>
+      <div class="free ${pct < .2 ? 'low' : ''}">${free} / ${total} seats free</div>
+      <span class="pill mono">SHOW ${s.id}</span>
+    </div>`;
+  }).join('');
+  go('shows');
+}
+
+// F3
+function pickShow(id) {
+  state.show = cinema.findShow(id);
+  state.selected = [];
+  $('seats-sub').textContent = `${state.show.movie.title} · Screen ${state.show.screen.screenNo} · ${state.show.startTime}`;
+  renderSeatmap();
+  go('seats');
+}
+function renderSeatmap() {
+  const rows = state.show.layoutRows();
+  $('seatmap').innerHTML = rows.map(({ row, seats }) => `
+    <div class="seat-row"><div class="rl">${row}</div>${seats.map((seat) => {
+      const ss = state.show.showSeats.get(seat.number);
+      const cls = ['seat', seat.seatType.id.toLowerCase(),
+        ss.isBooked() ? 'booked' : '',
+        state.selected.includes(seat.number) ? 'sel' : ''].join(' ');
+      return `<div class="${cls}" title="${seat.number} · ${seat.seatType.label} ₹${seat.seatType.priceOf()}"
+        ${ss.isAvailable() ? `onclick="toggleSeat('${seat.number}')"` : ''}>${seat.number.replace(/\D/g, '')}</div>`;
+    }).join('')}</div>`).join('');
+  updateSumbar();
+}
+function toggleSeat(no) {
+  const ss = state.show.showSeats.get(no);
+  if (!ss) return toast(`Seat ${no} does not exist`);          // edge case 4
+  if (!ss.isAvailable()) return toast(`Seat ${no} is already BOOKED`); // edge case 1
+  const i = state.selected.indexOf(no);
+  if (i >= 0) state.selected.splice(i, 1);
+  else {
+    if (state.selected.length >= 6) return toast('Max 6 seats per booking');
+    state.selected.push(no);
+  }
+  renderSeatmap();
+}
+function updateSumbar() {
+  const bar = $('sumbar');
+  if (!state.selected.length) { bar.style.display = 'none'; return; }
+  const sses = state.selected.map((n) => state.show.showSeats.get(n));
+  bar.style.display = 'flex';
+  $('sel-seats').textContent = state.selected.join(', ');
+  $('sel-amt').textContent = '₹' + PriceCalculator.totalFor(sses);
+}
+
+// F4 + F5 — hold seats, show priced summary
+$('to-pay').onclick = () => {
+  const r = service.holdSeats(me, state.show.id, state.selected);
+  if (!r.ok) return toast(r.reason);
+  state.pending = r.booking;
+  state.selected = [];
+  renderPriceRows(); renderPayGrid(); renderPayFields();
+  $('confirm-pay').textContent = `Pay ₹${state.pending.totalAmount()}`;
+  go('pay');
+};
+function renderPriceRows() {
+  $('price-rows').innerHTML = PriceCalculator.breakdown(state.pending.showSeats).map((b) =>
+    `<div class="pr"><span>${b.type} × ${b.count}</span><span class="mono">₹${b.subtotal}</span></div>`).join('')
+    + `<div class="pr"><span>TOTAL</span><span class="mono">₹${state.pending.totalAmount()}</span></div>`;
+}
+
+// F6 — Payment strategy picker
+const PAY_DEFS = [
+  { id: 'UPI', ico: '📱', blurb: 'Validate a UPI id (name@bank) and simulate the collect request.' },
+  { id: 'CARD', ico: '💳', blurb: '16-digit card with Luhn checksum + expiry + CVV validation.' },
+  { id: 'CASH', ico: '💵', blurb: 'Pay at the counter — always succeeds.' },
+];
+function renderPayGrid() {
+  $('pay-grid').innerHTML = PAY_DEFS.map((d) => `
+    <div class="pay-card ${state.payMethod === d.id ? 'active' : ''}" onclick="setPay('${d.id}')">
+      <h4><span class="ico">${d.ico}</span>${d.id === 'UPI' ? 'UPI' : d.id === 'CARD' ? 'Card' : 'Cash'}</h4>
+      <p>${d.blurb}</p>
+    </div>`).join('');
+}
+function setPay(id) { state.payMethod = id; renderPayGrid(); renderPayFields(); }
+function renderPayFields() {
+  const f = $('pay-fields');
+  if (state.payMethod === 'UPI') {
+    f.innerHTML = `<div><label>UPI ID</label><input id="f-upi" class="mono" placeholder="aniket@okaxis" value="aniket@okaxis"></div>`;
+  } else if (state.payMethod === 'CARD') {
+    f.innerHTML = `
+      <div><label>CARD NUMBER (try 4242 4242 4242 4242)</label><input id="f-card" class="mono" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>EXPIRY MM/YY</label><input id="f-exp" class="mono" placeholder="12/29" value="12/29"></div>
+        <div><label>CVV</label><input id="f-cvv" class="mono" placeholder="123" value="123"></div>
+      </div>`;
+  } else f.innerHTML = `<p style="font-size:12px;color:var(--ink-dim);line-height:1.6">Pay ₹${state.pending.totalAmount()} in cash at the counter. The cashier hands over the ticket — no validation needed.</p>`;
+}
+
+$('confirm-pay').onclick = () => {
+  let payment;
+  const fail = $('simulate-fail').checked;
+  if (state.payMethod === 'UPI') payment = new UpiPayment($('f-upi')?.value, fail);
+  else if (state.payMethod === 'CARD') payment = new CardPayment($('f-card')?.value, $('f-exp')?.value, $('f-cvv')?.value, fail);
+  else payment = new CashPayment();
+
+  const r = service.payFor(state.pending, payment);   // polymorphic dispatch: payment.pay(total)
+  if (!r.ok) {
+    toast(`✗ ${r.reason} — seats released`, false);
+    state.pending = null;
+    renderSeatmap();                                   // seats visibly freed again
+    return go('seats');
+  }
+  renderTicket(r.booking);
+  go('ticket');
+};
+
+// F7
+function renderTicket(b) {
+  const s = b.summary();
+  $('ticket-box').innerHTML = `
+    <div class="tk-top">
+      <div class="stamp">${s.status}</div>
+      <h3>${s.movie}</h3>
+      <div class="tk-id mono">BOOKING ${s.id}</div>
+    </div>
+    <div class="tk-body">
+      <div class="tk-row"><span>Screen</span><span class="mono">${s.screen} · ${TicketPrinter.fmt(s.time)}</span></div>
+      <div class="tk-row"><span>Seats</span><span class="mono">${s.seats.join(', ')}</span></div>
+      <div class="tk-row"><span>Customer</span><span class="mono">${s.customer}</span></div>
+      <div class="tk-row"><span>Paid via</span><span class="mono">${s.paymentMethod}${r_ref(s.id)}</span></div>
+      <div class="tk-row"><span>Status</span><span class="mono" style="color:var(--green)">${s.status}</span></div>
+    </div>
+    <div class="tk-total"><span style="color:var(--ink-dim);font-size:12px">TOTAL PAID</span><b class="mono">₹${s.total}</b></div>
+    <div class="tk-actions">
+      <button class="btn ghost" onclick="showMy()">My Bookings</button>
+      <button class="btn" onclick="restart()">Book Another</button>
+    </div>`;
+}
+// tiny helper: attach a payment reference-ish suffix (demo realism)
+function r_ref() { return ''; }
+
+// F8
+function showMy() {
+  const list = service.bookings.slice().reverse();
+  $('my-list').innerHTML = list.length ? list.map((b) => {
+    const s = b.summary();
+    const badge = s.status === 'CONFIRMED' ? '<span class="badge ok">CONFIRMED</span>'
+      : s.status === 'PENDING' ? '<span class="badge pend">PENDING</span>' : '<span class="badge cx">CANCELLED</span>';
+    return `
+    <div class="bk-card ${s.status === 'CANCELLED' ? 'cancelled' : ''}">
+      <div class="l">
+        <b>${s.movie}</b> <span class="mono" style="font-size:10px;color:var(--red)">${s.id}</span><br>
+        <div class="d mono">Screen ${s.screen} · ${TicketPrinter.fmt(s.time)} · seats ${s.seats.join(', ')} · ₹${s.total} · ${s.paymentMethod || '—'}</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        ${badge}
+        ${s.status === 'CONFIRMED' ? `<button class="btn danger" onclick="doCancel('${s.id}')">Cancel</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No bookings yet — book your first ticket from the Movies tab.</div>';
+  $('mycount').textContent = service.myBookings().length ? `(${service.myBookings().length})` : '';
+  go('my');
+}
+function doCancel(id) {
+  const r = service.cancelBooking(id);
+  if (!r.ok) return toast(r.reason);
+  toast(`Booking ${id} cancelled — seats AVAILABLE again${r.refund ? ` · ₹${r.refund.amount} refund to ${r.refund.to} in ${r.refund.eta}` : ' (cash: no refund trail)'}`, true);
+  showMy();
+}
+function restart() { state = { movie: null, show: null, selected: [], pending: null, payMethod: 'UPI' }; go('movies'); }
+
+$('back-to-movies').onclick = () => go('movies');
+$('back-to-shows').onclick = () => go('shows');
+$('back-to-seats').onclick = () => go('seats');
+$('nav-book').onclick = (e) => { e.preventDefault(); restart(); };
+$('nav-my').onclick = (e) => { e.preventDefault(); showMy(); };
+
+renderMovies();
+</script>
+</body>
+</html>
