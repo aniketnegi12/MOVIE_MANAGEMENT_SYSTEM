@@ -1,0 +1,68 @@
+==== MOVIE TICKET BOOKING ==================
+  PVR.imagined - Dehradun
+
+-- F1 · movies currently playing --
+  1. Inception (English, 148 min)
+  2. 3 Idiots (Hindi, 170 min)
+  3. Kantara (Kannada, 161 min)
+  4. Interstellar (English, 169 min)
+
+-- F2 · shows of Inception --
+  1. Screen 1 at 18:30  (92/92 free)
+  2. Screen 2 at 21:00  (92/92 free)
+
+-- F3 · seat layout of S1 --
+  Screen 1 · 18:30
+
+  A  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  B  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  C  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  D  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  E  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  F  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  G  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  H  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ] 
+  I  [ ] [ ] [ ] [ ] [ ] [ ] 
+  J  [ ] [ ] [ ] [ ] [ ] [ ] 
+
+-- F4 + F6 + F7 · book A1, A2 (UPI) --
+  Payment accepted via UPI
+
+==================================
+          MOVIE TICKET
+==================================
+  Booking ID : BKG-1
+  Movie      : Inception
+  Screen     : 1
+  Time       : 18:30
+  Seats      : A1, A2
+  Customer   : Aniket Negi
+  Paid via   : UPI
+  Status     : CONFIRMED
+==================================
+  TOTAL      : Rs.300
+==================================
+
+-- edge 2 · failed payment releases seats --
+  Payment failed: Card declined by issuer — seats released
+  G5 now: AVAILABLE (released)
+
+-- F8 · cancel BKG-0001, seats freed --
+  Booking BKG-1 cancelled — refund of Rs.300 to UPI in 3-5 working days
+  A1 now: AVAILABLE (freed)
+
+-- final state --
+  My bookings:
+   BKG-2  Inception  seats G5  Rs.250  ()
+
+========= MENU =========
+ 1. List movies (F1)
+ 2. List shows of a movie (F2)
+ 3. Seat layout of a show (F3)
+ 4. Book seats (F4/F5)
+ 5. Pay for a pending booking (F6)
+ 6. Print a ticket (F7)
+ 7. Cancel a booking (F8)
+ 8. My bookings
+ 0. Exit
+  choice>   Goodbye!
